@@ -1,0 +1,11 @@
+services:
+
+  PaddleOCR:
+    build: . 
+    container_name: paddle_ocr_api 
+    image: paddleocrfastapi:latest 
+    environment:
+      - OCR_LANGUAGE=id
+    ports:
+    - "8000:8000" # 
+    restart: unless-stopped
