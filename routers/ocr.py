@@ -16,7 +16,7 @@ ocr = PaddleOCR(use_angle_cls=True, lang=OCR_LANGUAGE)
 
 def group_data(txts):
     data = {
-        "products": [],
+        "items": [],
         "discount": None,
         "total": None
     }
@@ -28,14 +28,15 @@ def group_data(txts):
     total_pattern = re.compile(r'TOTAL:?\s?(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d+)?)')
 
     i = 0
+    id_counter = 1  # Counter untuk ID item
     while i < len(txts):
         if i + 2 < len(txts):
             product_name = txts[i].strip()
             quantity_str = txts[i + 1].strip()
             price_str = txts[i + 2].strip()
 
-            # Validasi nama produk dengan regex
-            if not product_name_pattern.match(product_name):
+            # Validasi nama produk dengan regex (Pastikan nama produk lebih dari angka)
+            if not product_name_pattern.match(product_name) or product_name.isdigit() or ',' in product_name:
                 i += 1
                 continue
 
@@ -46,28 +47,44 @@ def group_data(txts):
 
             match = price_pattern.search(price_str)
             if match:
-                price = match.group(0)
-                if price is not None and quantity is not None:
-                    data["products"].append({
-                        "name": product_name,
+                price = match.group(0).replace(",", "").replace(".", "")
+                if price.isdigit() and quantity is not None:
+                    price = int(price)
+                    # Validasi quantity agar berada antara 1 - 100
+                    if quantity < 1 or quantity > 100:
+                        quantity = 1
+
+                    # Hitung subtotal
+                    subtotal = price * quantity
+
+                    # Asumsikan kategori adalah "general" (atau logika kategori dapat ditambahkan)
+                    category = "general"
+
+                    # Tambahkan item ke daftar
+                    data["items"].append({
+                        "id": id_counter,
+                        "item_name": product_name,
+                        "category": category,
+                        "price": price,
                         "quantity": quantity,
-                        "price": price
+                        "subtotal": subtotal
                     })
+                    id_counter += 1
             i += 3  # Lanjutkan ke produk berikutnya
         else:
             break
 
+    # Parsing diskon
     discount_match = discount_pattern.search(' '.join(txts))
     if discount_match:
-        data["discount"] = discount_match.group(1)
+        data["discount"] = discount_match.group(1).replace(",", "").replace(".", "")
 
+    # Parsing total
     total_match = total_pattern.search(' '.join(txts))
     if total_match:
-        data["total"] = total_match.group(1)
+        data["total"] = total_match.group(1).replace(",", "").replace(".", "")
 
     return data
-
-
 
 
 @router.get('/predict-by-path', response_model=RestfulModel, summary="Path")
