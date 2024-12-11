@@ -14,6 +14,22 @@ router = APIRouter(prefix="/ocr", tags=["OCR"])
 ocr = PaddleOCR(use_angle_cls=True, lang=OCR_LANGUAGE)
 
 
+def clean_number(number_str):
+    """ Membersihkan angka dari pemisah ribuan dan desimal """
+    # Menghapus pemisah ribuan dan desimal
+    number_str = number_str.replace(",", "").replace(".", "")
+    number_str = number_str.replace("o", "0")
+    return number_str
+
+
+
+def clean_number(number_str):
+    """ Membersihkan angka dari pemisah ribuan dan desimal """
+    number_str = number_str.replace(",", "").replace(".", "")
+    number_str = number_str.replace("o", "0")  # Mengganti 'o' dengan 0
+    return number_str
+
+
 def group_data(txts):
     data = {
         "items": [],
@@ -22,10 +38,10 @@ def group_data(txts):
     }
 
     # Regex untuk mendeteksi nama produk, harga, diskon, dan total
-    product_name_pattern = re.compile(r'^[A-Za-z0-9\s.,\-]+$')
-    price_pattern = re.compile(r'(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d+)?)')
-    discount_pattern = re.compile(r'DISKON:?\s?(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d+)?)')
-    total_pattern = re.compile(r'TOTAL:?\s?(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d+)?)')
+    product_name_pattern = re.compile(r'^[A-Za-z0-9\s.,&\-_/()|+:;!?\[\]{}<>^%$@#*="~]+$')
+    price_pattern = re.compile(r'\d{1,6}(?:[.,]\d{3})*|\d+')
+    discount_pattern = re.compile(r'DISKON:?\s?(\d{1,3}(?:[.,]\d{3})*)')
+    total_pattern = re.compile(r'TOTAL:?\s?(\d{1,3}(?:[.,]\d{3})*)')
 
     i = 0
     id_counter = 1  # Counter untuk ID item
@@ -47,12 +63,18 @@ def group_data(txts):
 
             match = price_pattern.search(price_str)
             if match:
-                price = match.group(0).replace(",", "").replace(".", "")
+                # Menghapus pemisah ribuan dan desimal
+                price = clean_number(match.group(0))
                 if price.isdigit() and quantity is not None:
                     price = int(price)
                     # Validasi quantity agar berada antara 1 - 100
                     if quantity < 1 or quantity > 100:
                         quantity = 1
+
+                    # Menambahkan pengecekan harga barang
+                    if price <= 100:  # Jika harga <= 100, skip item ini
+                        i += 3
+                        continue
 
                     # Hitung subtotal
                     subtotal = price * quantity
@@ -77,12 +99,12 @@ def group_data(txts):
     # Parsing diskon
     discount_match = discount_pattern.search(' '.join(txts))
     if discount_match:
-        data["discount"] = discount_match.group(1).replace(",", "").replace(".", "")
+        data["discount"] = clean_number(discount_match.group(1))
 
     # Parsing total
     total_match = total_pattern.search(' '.join(txts))
     if total_match:
-        data["total"] = total_match.group(1).replace(",", "").replace(".", "")
+        data["total"] = clean_number(total_match.group(1))
 
     return data
 
