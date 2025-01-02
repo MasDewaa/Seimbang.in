@@ -1,1 +1,1 @@
-final result in [Seimba](https://github.com/seimbang-in)
+final result in [Seimbang.in](https://github.com/seimbang-in)
